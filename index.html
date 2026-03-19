@@ -206,7 +206,7 @@
       updateEmotionStyle();
 
       document.getElementById('tweet-btn').addEventListener('click', () => {
-        const baseUrl = 'https://kg-ninja.github.io/BOBOBO/';
+        const baseUrl = 'https://kg-ninja.github.io/BOBOBONjules/';
         const shareUrl = `${baseUrl}?emotion=${currentEmotion}`;
         const text = `今のボボボの感情は「${currentEmotion}」です！`;
         const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}&hashtags=BOBOBO,ThreeJS`;
@@ -432,17 +432,6 @@
       face.leftCheek.material.opacity = 0.15;
       face.rightCheek.material.opacity = 0.15;
 
-      // Additional properties used in dynamic dances
-      bones.leftUpperArm.rotation.y = 0;
-      bones.rightUpperArm.rotation.y = 0;
-      bones.leftThigh.rotation.x = base.leftThigh.rx;
-      bones.rightThigh.rotation.x = base.rightThigh.rx;
-      bones.leftKnee.rotation.x = base.leftKnee.rx;
-      bones.rightKnee.rotation.x = base.rightKnee.rx;
-    }
-
-    function snap(v, power = 1.0) {
-      return Math.tanh(v * power);
     }
 
     function applyEmotionPose(t) {
@@ -477,9 +466,10 @@
 
         case 'sad': {
           // ゆっくり膝をついてうなだれる（絶望のコンテンポラリーダンス風）
-          const speed = 1.0;
+          const speed = 0.8;
           const cycle = (t * speed) % (Math.PI * 2);
-          const down = a(s(cycle * 0.5)); // 0から1へ。絶対値を使って接地時間を確保
+          // パワーをかけることで接地（down=1近辺）の時間を長くする
+          const down = Math.pow(a(s(cycle * 0.5)), 0.6);
           const breathe = s(t * 1.2) * 0.02;
 
           character.position.y = -0.8 * down + breathe;
