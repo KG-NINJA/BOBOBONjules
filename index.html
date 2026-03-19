@@ -527,20 +527,15 @@
 
         case 'surprise': {
           // 衝撃を受けたような、急激な静止と重心移動
-          const reaction = s(t * 1.5);
-          const isRecoil = reaction > 0.8;
+          // 0.8以上のスパイクのみを滑らかに抽出
+          const raw = s(t * 1.5);
+          const reaction = Math.max(0, (raw - 0.8) / 0.2); // 0.8以上で0〜1へ
+          const smooth = reaction * reaction * (3 - 2 * reaction); // 0-1の範囲でスムージング
 
-          if (isRecoil) {
-            character.position.z = -0.2;
-            bones.hips.rotation.x = -0.2;
-            bones.chest.rotation.x = -0.3;
-            bones.neck.rotation.x = -0.4;
-          } else {
-            character.position.z = 0;
-            bones.hips.rotation.x = 0;
-            bones.chest.rotation.x = 0;
-            bones.neck.rotation.x = 0;
-          }
+          character.position.z = -0.2 * smooth;
+          bones.hips.rotation.x = -0.2 * smooth;
+          bones.chest.rotation.x = -0.3 * smooth;
+          bones.neck.rotation.x = -0.4 * smooth;
 
           bones.leftShoulder.rotation.z = 1.0;
           bones.rightShoulder.rotation.z = -1.0;
