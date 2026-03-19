@@ -437,179 +437,154 @@
       return Math.tanh(v * power);
     }
 
-    // アニメ調の「溜め→一気に解放」感をつくるカーブ
-    function holdBurst(t, freq = 1.0, holdRatio = 0.72) {
-      const phase = (t * freq) % 1;
-      if (phase < holdRatio) return -1;
-      const k = (phase - holdRatio) / (1 - holdRatio);
-      return -1 + Math.sin(k * Math.PI) * 2;
-    }
-
-    // 日本のアニメのようなコマ落とし感を出すタイミング関数
-    function stepTime(t, fps = 12) {
-      return Math.floor(t * fps) / fps;
-    }
-
-    function applyEmotionPose(realT) {
+    function applyEmotionPose(t) {
       const s = Math.sin;
+      const c = Math.cos;
       const a = Math.abs;
-      const t = stepTime(realT, 12); // 日本のアニメ（2コマ打ち/3コマ打ち）に近いコマ感
 
       switch (currentEmotion) {
         case 'joy': {
-          // 日本のアニメ的な跳ねる動き（滞空時間長め、接地で潰れる）
-          const freq = 1.8;
-          const phase = (realT * freq) % 1.0;
-          let hop = 0;
-          let squash = 1;
-          let stretch = 1;
+          // ミュージカル風の優雅でリズミカルなダンス
+          const cycle = t * 2.0;
+          character.position.y = a(s(cycle)) * 0.12;
+          character.rotation.y = s(cycle * 0.5) * 0.2;
 
-          if (phase < 0.2) {
-            // 接地・溜め (Squash)
-            squash = 1.0 - s(phase * Math.PI * 5) * 0.3;
-            character.scale.set(1.2, squash, 1.2);
-          } else if (phase < 0.8) {
-            // ジャンプ (Stretch & Air)
-            const jumpT = (phase - 0.2) / 0.6;
-            hop = s(jumpT * Math.PI) * 0.8;
-            stretch = 1.0 + s(jumpT * Math.PI) * 0.2;
-            character.position.y = hop;
-            character.scale.set(0.8, stretch, 0.8);
-          }
+          bones.hips.rotation.y = s(cycle) * 0.15;
+          bones.chest.rotation.y = s(cycle) * 0.1;
+          bones.chest.rotation.x = -0.05 + s(cycle * 2) * 0.05;
 
-          bones.chest.rotation.x = -0.2;
-          bones.leftShoulder.rotation.z = 2.4 + s(t * 10) * 0.4;
-          bones.rightShoulder.rotation.z = -2.4 - s(t * 10) * 0.4;
+          // 腕を大きく広げ、優雅に動かす
+          bones.leftShoulder.rotation.z = 1.2 + s(cycle) * 0.4;
+          bones.leftShoulder.rotation.y = 0.5 + c(cycle) * 0.3;
+          bones.rightShoulder.rotation.z = -1.2 - s(cycle + 0.5) * 0.4;
+          bones.rightShoulder.rotation.y = -0.5 - c(cycle + 0.5) * 0.3;
 
-          const legAngle = hop > 0.1 ? -1.2 : -0.1;
-          bones.leftThigh.rotation.x = legAngle;
-          bones.rightThigh.rotation.x = legAngle;
-          bones.leftKnee.rotation.x = legAngle * 1.2;
-          bones.rightKnee.rotation.x = legAngle * 1.2;
+          bones.leftElbow.rotation.x = -0.3 + s(cycle) * 0.2;
+          bones.rightElbow.rotation.x = -0.3 + s(cycle + 0.5) * 0.2;
 
-          face.mouth.scale.set(1.8, 1.8 + hop, 1);
-          face.leftEye.scale.y = 0.15;
-          face.rightEye.scale.y = 0.15;
+          bones.leftThigh.rotation.x = -0.2 + s(cycle) * 0.3;
+          bones.rightThigh.rotation.x = -0.2 + s(cycle + Math.PI) * 0.3;
+
+          face.mouth.scale.set(1.2, 0.8 + s(cycle) * 0.2, 1);
+          face.leftEye.scale.y = 0.7;
+          face.rightEye.scale.y = 0.7;
           break;
         }
 
         case 'sad': {
-          // 深い落胆と震え
-          const shake = s(realT * 40) * 0.005;
-          character.position.y = -0.15 + shake;
-          bones.abdomen.rotation.x = 0.5;
-          bones.chest.rotation.x = 0.4;
-          bones.neck.rotation.x = 0.6;
-          bones.head.rotation.x = 0.3;
+          // 重く、ゆっくりとした絶望の表現。深い呼吸。
+          const breathe = s(t * 0.8);
+          character.position.y = -0.05 + breathe * 0.01;
 
-          bones.leftShoulder.rotation.z = 0.2;
-          bones.rightShoulder.rotation.z = -0.2;
-          bones.leftElbow.rotation.x = -0.5;
-          bones.rightElbow.rotation.x = -0.5;
+          bones.hips.rotation.x = 0.15;
+          bones.abdomen.rotation.x = 0.3;
+          bones.chest.rotation.x = 0.2 + breathe * 0.05;
+          bones.neck.rotation.x = 0.4;
+          bones.head.rotation.x = 0.2;
 
-          const slowBreathe = s(realT * 1.2);
-          bones.chest.scale.set(1 + slowBreathe * 0.05, 1 - slowBreathe * 0.03, 1 + slowBreathe * 0.05);
+          // 肩を落とし、腕を力なく下げる
+          bones.leftShoulder.rotation.z = 0.1;
+          bones.rightShoulder.rotation.z = -0.1;
+          bones.leftShoulder.rotation.x = 0.4;
+          bones.rightShoulder.rotation.x = 0.4;
+          bones.leftElbow.rotation.x = -0.2;
+          bones.rightElbow.rotation.x = -0.2;
 
-          face.leftEye.scale.y = 0.1;
-          face.rightEye.scale.y = 0.1;
-          face.leftBrowPivot.rotation.z = -0.5;
-          face.rightBrowPivot.rotation.z = 0.5;
-          face.mouth.scale.set(0.7, 0.2, 1);
+          face.leftEye.scale.y = 0.3;
+          face.rightEye.scale.y = 0.3;
+          face.leftBrowPivot.rotation.z = -0.2;
+          face.rightBrowPivot.rotation.z = 0.2;
+          face.mouth.scale.set(0.8, 0.4, 1);
           break;
         }
 
         case 'anger': {
-          // 激しい怒りの振動と構え
-          const shake = snap(s(realT * 60.0), 5.0);
-          character.position.x = shake * 0.03;
-          character.scale.set(1.1, 0.95, 1.1); // 常に少し力んでいる
+          // 緊張感のある、鋭い動き。肩を怒らせ、荒い呼吸。
+          const heavyBreathe = s(t * 4.0);
+          character.position.z = heavyBreathe * 0.01;
 
-          bones.chest.rotation.y = shake * 0.2;
-          bones.neck.rotation.x = -0.4;
-          bones.leftShoulder.rotation.x = -1.5;
-          bones.rightShoulder.rotation.x = -1.5;
-          bones.leftElbow.rotation.x = -2.0;
-          bones.rightElbow.rotation.x = -2.0;
+          bones.hips.rotation.x = -0.1;
+          bones.chest.rotation.x = -0.1 + heavyBreathe * 0.08;
+          bones.chest.scale.set(1 + heavyBreathe * 0.03, 1, 1 + heavyBreathe * 0.03);
 
-          // 膝を曲げて腰を落とす
-          bones.hips.position.y = -0.2;
-          bones.leftThigh.rotation.x = -0.5;
-          bones.rightThigh.rotation.x = -0.5;
-          bones.leftKnee.rotation.x = -1.0;
-          bones.rightKnee.rotation.x = -1.0;
+          bones.leftShoulder.rotation.x = -0.8;
+          bones.leftShoulder.rotation.z = 0.3;
+          bones.rightShoulder.rotation.x = -0.8;
+          bones.rightShoulder.rotation.z = -0.3;
 
-          face.leftBrowPivot.position.y = 0.17;
-          face.rightBrowPivot.position.y = 0.17;
-          face.leftBrowPivot.rotation.z = 0.6;
-          face.rightBrowPivot.rotation.z = -0.6;
-          face.mouth.scale.set(1.5, 0.3 + a(shake) * 0.5, 1);
+          bones.leftElbow.rotation.x = -1.5;
+          bones.rightElbow.rotation.x = -1.5;
+
+          // 拳を握りしめるような角度
+          bones.head.rotation.x = -0.2;
+          bones.head.rotation.y = s(t * 10) * 0.02; // 微かな震え
+
+          face.leftBrowPivot.rotation.z = 0.4;
+          face.rightBrowPivot.rotation.z = -0.4;
+          face.mouth.scale.set(1.4, 0.3, 1);
           break;
         }
 
         case 'surprise': {
-          // 驚き：一瞬の溜めのあと、目と頭が飛び出す
-          const freq = 1.5;
-          const phase = (realT * freq) % 1.0;
+          // 衝撃を受けたような、急激な静止と重心移動
+          const reaction = s(t * 1.5);
+          const isRecoil = reaction > 0.8;
 
-          if (phase < 0.7) {
-            // 予備動作：小刻みに震えながら少し縮む
-            const shake = s(realT * 50) * 0.02;
-            character.scale.set(1.1 + shake, 0.85, 1.1 + shake);
+          if (isRecoil) {
+            character.position.z = -0.2;
+            bones.hips.rotation.x = -0.2;
+            bones.chest.rotation.x = -0.3;
+            bones.neck.rotation.x = -0.4;
           } else {
-            // 解放：縦に伸び、目が飛び出す
-            const burstT = (phase - 0.7) / 0.3;
-            const stretch = 1.0 + s(burstT * Math.PI) * 0.8;
-            character.scale.set(0.7, stretch, 0.7);
-
-            const pop = s(burstT * Math.PI);
-            bones.head.position.z = pop * 0.4;
-            bones.head.position.y = pop * 0.2;
-
-            face.leftEye.scale.set(2.5, 2.5, 1);
-            face.rightEye.scale.set(2.5, 2.5, 1);
-            face.leftEyePivot.position.z = pop * 0.3;
-            face.rightEyePivot.position.z = pop * 0.3;
+            character.position.z = 0;
+            bones.hips.rotation.x = 0;
+            bones.chest.rotation.x = 0;
+            bones.neck.rotation.x = 0;
           }
 
-          bones.neck.rotation.x = -0.4;
-          bones.leftShoulder.rotation.z = 2.0;
-          bones.rightShoulder.rotation.z = -2.0;
+          bones.leftShoulder.rotation.z = 1.0;
+          bones.rightShoulder.rotation.z = -1.0;
 
-          face.mouth.scale.set(0.8, 3.0, 1);
+          face.leftEye.scale.set(1.4, 1.4, 1);
+          face.rightEye.scale.set(1.4, 1.4, 1);
+          face.mouth.scale.set(0.6, 1.2, 1);
           break;
         }
 
         case 'calm': {
-          // 穏やかな浮遊感
-          const float = s(realT * 1.5) * 0.1;
-          character.position.y = 0.2 + float;
-          bones.leftThigh.rotation.x = -0.5;
-          bones.rightThigh.rotation.x = -0.5;
-          bones.leftKnee.rotation.x = -0.8;
-          bones.rightKnee.rotation.x = -0.8;
+          // 深く穏やかな呼吸。流れるような小さな揺れ。
+          const slowBreathe = s(t * 0.5);
+          character.position.y = slowBreathe * 0.02;
 
-          const breathe = 1.0 + s(realT * 1.5) * 0.05;
-          bones.chest.scale.set(breathe, breathe, breathe);
+          bones.chest.rotation.x = slowBreathe * 0.03;
+          bones.chest.scale.set(1 + slowBreathe * 0.02, 1 + slowBreathe * 0.02, 1 + slowBreathe * 0.02);
 
-          face.leftEye.scale.y = 0.05;
-          face.rightEye.scale.y = 0.05;
-          face.mouth.scale.set(0.5, 0.1, 1);
+          bones.leftShoulder.rotation.z = 0.15;
+          bones.rightShoulder.rotation.z = -0.15;
+          bones.head.rotation.y = s(t * 0.3) * 0.1;
+
+          face.leftEye.scale.y = 0.1;
+          face.rightEye.scale.y = 0.1;
+          face.mouth.scale.set(0.8, 0.1, 1);
           break;
         }
 
         case 'confusion': {
-          // ぐるぐる回る頭と不安定なポーズ
-          character.rotation.z = s(realT * 2) * 0.1;
-          bones.head.rotation.y = realT * 10; // 頭が高速回転
-          bones.head.rotation.x = s(realT * 5) * 0.5;
+          // 重心の不安定な揺れ。考え込むような頭の傾き。
+          const wobble = s(t * 1.2);
+          character.rotation.y = wobble * 0.1;
 
-          bones.leftShoulder.rotation.z = 1.0 + s(realT * 4);
-          bones.rightShoulder.rotation.z = -1.0 + s(realT * 4.5);
+          bones.head.rotation.z = 0.3 + s(t * 0.8) * 0.15;
+          bones.head.rotation.x = 0.1 + c(t * 0.8) * 0.1;
 
-          face.leftEye.scale.set(1, 1.5, 1);
-          face.rightEye.scale.set(1.5, 1, 1); // 左右非対称
-          face.mouth.scale.set(1, 1, 1);
-          face.mouth.rotation.z = realT * 5;
+          bones.leftShoulder.rotation.x = 0.2;
+          bones.leftShoulder.rotation.z = 0.3;
+          bones.rightShoulder.rotation.y = -0.5;
+          bones.rightElbow.rotation.x = -1.2; // 顎に手をやるようなポーズ
+
+          face.leftBrowPivot.rotation.z = -0.2;
+          face.rightBrowPivot.rotation.z = 0.1;
+          face.mouth.scale.set(0.9, 0.3, 1);
           break;
         }
       }
