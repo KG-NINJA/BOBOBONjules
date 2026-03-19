@@ -413,15 +413,19 @@
       }
       character.position.set(0, 0, 0);
       character.rotation.set(0, 0, 0);
+      character.scale.set(1, 1, 1);
       face.leftEye.scale.set(1, 1, 1);
       face.rightEye.scale.set(1, 1, 1);
       face.leftEyePivot.rotation.set(0, 0, 0);
       face.rightEyePivot.rotation.set(0, 0, 0);
+      face.leftEyePivot.position.z = 0;
+      face.rightEyePivot.position.z = 0;
       face.leftBrowPivot.rotation.set(0, 0, 0);
       face.rightBrowPivot.rotation.set(0, 0, 0);
       face.leftBrowPivot.position.y = 0.195;
       face.rightBrowPivot.position.y = 0.195;
       face.mouth.scale.set(1, 1, 1);
+      face.mouth.rotation.z = 0;
       face.mouthPivot.position.y = 0.08;
       face.leftCheek.scale.set(1, 1, 1);
       face.rightCheek.scale.set(1, 1, 1);
@@ -441,167 +445,171 @@
       return -1 + Math.sin(k * Math.PI) * 2;
     }
 
-    function applyEmotionPose(t) {
+    // 日本のアニメのようなコマ落とし感を出すタイミング関数
+    function stepTime(t, fps = 12) {
+      return Math.floor(t * fps) / fps;
+    }
+
+    function applyEmotionPose(realT) {
       const s = Math.sin;
       const a = Math.abs;
+      const t = stepTime(realT, 12); // 日本のアニメ（2コマ打ち/3コマ打ち）に近いコマ感
 
       switch (currentEmotion) {
         case 'joy': {
-          const hop = a(s(t * 7.4));
-          const punch = snap(s(t * 10.5), 2.3);
-          const burst = holdBurst(t, 2.4, 0.68);
-          character.position.y = hop * 0.33;
-          character.rotation.z = s(t * 7.4) * 0.05;
-          bones.chest.rotation.z = s(t * 7.4) * 0.13;
-          bones.chest.rotation.x = -0.08 + burst * 0.04;
-          bones.leftShoulder.rotation.z = 2.25 + s(t * 14.0) * 0.45;
-          bones.rightShoulder.rotation.z = -2.25 - s(t * 14.0) * 0.45;
-          bones.leftElbow.rotation.x = -0.9;
-          bones.rightElbow.rotation.x = -0.9;
-          bones.leftThigh.rotation.x = -hop * 0.30;
-          bones.rightThigh.rotation.x = -hop * 0.30;
-          bones.neck.rotation.x = -0.1 + punch * 0.05;
-          bones.head.rotation.z = s(t * 9.0) * 0.08;
-          face.leftEye.scale.y = 0.5 + hop * 0.3;
-          face.rightEye.scale.y = 0.5 + hop * 0.3;
-          face.mouth.scale.set(1.2, 1.4 + hop * 0.5, 1);
-          face.leftBrowPivot.position.y += 0.004 + hop * 0.01;
-          face.rightBrowPivot.position.y += 0.004 + hop * 0.01;
-          face.leftCheek.material.opacity = 0.40;
-          face.rightCheek.material.opacity = 0.40;
-          face.leftCheek.scale.set(1.2, 1.1, 1);
-          face.rightCheek.scale.set(1.2, 1.1, 1);
-          face.leftEyePivot.rotation.z = s(t * 11.0) * 0.08;
-          face.rightEyePivot.rotation.z = -s(t * 11.0) * 0.08;
+          // 日本のアニメ的な跳ねる動き（滞空時間長め、接地で潰れる）
+          const freq = 1.8;
+          const phase = (realT * freq) % 1.0;
+          let hop = 0;
+          let squash = 1;
+          let stretch = 1;
+
+          if (phase < 0.2) {
+            // 接地・溜め (Squash)
+            squash = 1.0 - s(phase * Math.PI * 5) * 0.3;
+            character.scale.set(1.2, squash, 1.2);
+          } else if (phase < 0.8) {
+            // ジャンプ (Stretch & Air)
+            const jumpT = (phase - 0.2) / 0.6;
+            hop = s(jumpT * Math.PI) * 0.8;
+            stretch = 1.0 + s(jumpT * Math.PI) * 0.2;
+            character.position.y = hop;
+            character.scale.set(0.8, stretch, 0.8);
+          }
+
+          bones.chest.rotation.x = -0.2;
+          bones.leftShoulder.rotation.z = 2.4 + s(t * 10) * 0.4;
+          bones.rightShoulder.rotation.z = -2.4 - s(t * 10) * 0.4;
+
+          const legAngle = hop > 0.1 ? -1.2 : -0.1;
+          bones.leftThigh.rotation.x = legAngle;
+          bones.rightThigh.rotation.x = legAngle;
+          bones.leftKnee.rotation.x = legAngle * 1.2;
+          bones.rightKnee.rotation.x = legAngle * 1.2;
+
+          face.mouth.scale.set(1.8, 1.8 + hop, 1);
+          face.leftEye.scale.y = 0.15;
+          face.rightEye.scale.y = 0.15;
           break;
         }
 
         case 'sad': {
-          character.position.y = -0.08;
-          bones.abdomen.rotation.x = 0.28;
-          bones.chest.rotation.x = 0.22;
-          bones.neck.rotation.x = 0.42;
-          bones.head.rotation.x = 0.16;
-          bones.leftShoulder.rotation.x = 0.34;
-          bones.rightShoulder.rotation.x = 0.34;
-          bones.leftShoulder.rotation.z = 0.16;
-          bones.rightShoulder.rotation.z = -0.16;
-          const breathe = 1.0 + s(t * 1.6) * 0.03;
-          bones.chest.scale.set(1, breathe, 1);
-          face.leftEye.scale.y = 0.38 + s(t * 1.6) * 0.03;
-          face.rightEye.scale.y = 0.38 + s(t * 1.6) * 0.03;
-          face.mouth.scale.set(0.8, 0.7, 1);
-          face.mouthPivot.position.y -= 0.007;
-          face.leftBrowPivot.rotation.z = -0.25;
-          face.rightBrowPivot.rotation.z = 0.25;
-          face.leftBrowPivot.position.y -= 0.01;
-          face.rightBrowPivot.position.y -= 0.01;
-          face.leftCheek.material.opacity = 0.08;
-          face.rightCheek.material.opacity = 0.08;
+          // 深い落胆と震え
+          const shake = s(realT * 40) * 0.005;
+          character.position.y = -0.15 + shake;
+          bones.abdomen.rotation.x = 0.5;
+          bones.chest.rotation.x = 0.4;
+          bones.neck.rotation.x = 0.6;
+          bones.head.rotation.x = 0.3;
+
+          bones.leftShoulder.rotation.z = 0.2;
+          bones.rightShoulder.rotation.z = -0.2;
+          bones.leftElbow.rotation.x = -0.5;
+          bones.rightElbow.rotation.x = -0.5;
+
+          const slowBreathe = s(realT * 1.2);
+          bones.chest.scale.set(1 + slowBreathe * 0.05, 1 - slowBreathe * 0.03, 1 + slowBreathe * 0.05);
+
+          face.leftEye.scale.y = 0.1;
+          face.rightEye.scale.y = 0.1;
+          face.leftBrowPivot.rotation.z = -0.5;
+          face.rightBrowPivot.rotation.z = 0.5;
+          face.mouth.scale.set(0.7, 0.2, 1);
           break;
         }
 
         case 'anger': {
-          const shake = snap(s(t * 32.0), 3.0);
-          const slam = holdBurst(t, 3.2, 0.75);
-          character.position.x = shake * 0.024;
-          character.position.z = a(shake) * 0.02;
-          character.rotation.y = shake * 0.05;
-          bones.chest.rotation.y = shake * 0.09;
-          bones.chest.rotation.x = 0.08 + slam * 0.06;
-          bones.abdomen.rotation.x = -0.08;
-          bones.neck.rotation.x = -0.12;
-          bones.leftShoulder.rotation.x = -1.15;
-          bones.rightShoulder.rotation.x = -1.15;
-          bones.leftElbow.rotation.x = -1.75;
-          bones.rightElbow.rotation.x = -1.75;
-          bones.leftUpperArm.rotation.z = 0.14;
-          bones.rightUpperArm.rotation.z = -0.14;
-          bones.leftThigh.rotation.x = 0.08;
-          bones.rightThigh.rotation.x = 0.08;
-          bones.head.rotation.y = shake * 0.12;
-          face.leftEye.scale.y = 0.28;
-          face.rightEye.scale.y = 0.28;
-          face.leftBrowPivot.rotation.z = 0.34;
-          face.rightBrowPivot.rotation.z = -0.34;
-          face.leftBrowPivot.position.y -= 0.014;
-          face.rightBrowPivot.position.y -= 0.014;
-          face.mouth.scale.set(1.3, 0.65 + a(shake) * 0.2, 1);
-          face.mouthPivot.position.y -= 0.002;
-          face.leftCheek.material.opacity = 0.22 + a(shake) * 0.1;
-          face.rightCheek.material.opacity = 0.22 + a(shake) * 0.1;
-          bones.leftFoot.rotation.x = -0.08 - a(slam) * 0.08;
-          bones.rightFoot.rotation.x = -0.08 - a(slam) * 0.08;
+          // 激しい怒りの振動と構え
+          const shake = snap(s(realT * 60.0), 5.0);
+          character.position.x = shake * 0.03;
+          character.scale.set(1.1, 0.95, 1.1); // 常に少し力んでいる
+
+          bones.chest.rotation.y = shake * 0.2;
+          bones.neck.rotation.x = -0.4;
+          bones.leftShoulder.rotation.x = -1.5;
+          bones.rightShoulder.rotation.x = -1.5;
+          bones.leftElbow.rotation.x = -2.0;
+          bones.rightElbow.rotation.x = -2.0;
+
+          // 膝を曲げて腰を落とす
+          bones.hips.position.y = -0.2;
+          bones.leftThigh.rotation.x = -0.5;
+          bones.rightThigh.rotation.x = -0.5;
+          bones.leftKnee.rotation.x = -1.0;
+          bones.rightKnee.rotation.x = -1.0;
+
+          face.leftBrowPivot.position.y = 0.17;
+          face.rightBrowPivot.position.y = 0.17;
+          face.leftBrowPivot.rotation.z = 0.6;
+          face.rightBrowPivot.rotation.z = -0.6;
+          face.mouth.scale.set(1.5, 0.3 + a(shake) * 0.5, 1);
           break;
         }
 
         case 'surprise': {
-          const shock = a(s(t * 10.0));
-          const recoil = holdBurst(t, 2.0, 0.66);
-          character.position.z = s(t * 10.0) * 0.075;
-          character.position.y = shock * 0.15;
-          character.rotation.x = recoil * 0.04;
-          bones.abdomen.rotation.x = -0.10;
-          bones.neck.rotation.x = -0.32;
-          bones.head.rotation.x = -0.14;
-          bones.leftShoulder.rotation.z = 1.0;
-          bones.rightShoulder.rotation.z = -1.0;
-          bones.leftElbow.rotation.x = -0.25;
-          bones.rightElbow.rotation.x = -0.25;
-          face.leftEye.scale.y = 1.7 + shock * 0.6;
-          face.rightEye.scale.y = 1.7 + shock * 0.6;
-          face.leftEye.scale.x = 0.9;
-          face.rightEye.scale.x = 0.9;
-          face.leftBrowPivot.position.y += 0.02 + shock * 0.01;
-          face.rightBrowPivot.position.y += 0.02 + shock * 0.01;
-          face.mouth.scale.set(0.6, 2.2 + shock * 0.6, 1);
-          face.mouthPivot.position.y -= 0.01;
-          face.leftCheek.material.opacity = 0.16;
-          face.rightCheek.material.opacity = 0.16;
-          bones.leftShoulder.rotation.x = -0.22 + recoil * 0.08;
-          bones.rightShoulder.rotation.x = -0.22 + recoil * 0.08;
+          // 驚き：一瞬の溜めのあと、目と頭が飛び出す
+          const freq = 1.5;
+          const phase = (realT * freq) % 1.0;
+
+          if (phase < 0.7) {
+            // 予備動作：小刻みに震えながら少し縮む
+            const shake = s(realT * 50) * 0.02;
+            character.scale.set(1.1 + shake, 0.85, 1.1 + shake);
+          } else {
+            // 解放：縦に伸び、目が飛び出す
+            const burstT = (phase - 0.7) / 0.3;
+            const stretch = 1.0 + s(burstT * Math.PI) * 0.8;
+            character.scale.set(0.7, stretch, 0.7);
+
+            const pop = s(burstT * Math.PI);
+            bones.head.position.z = pop * 0.4;
+            bones.head.position.y = pop * 0.2;
+
+            face.leftEye.scale.set(2.5, 2.5, 1);
+            face.rightEye.scale.set(2.5, 2.5, 1);
+            face.leftEyePivot.position.z = pop * 0.3;
+            face.rightEyePivot.position.z = pop * 0.3;
+          }
+
+          bones.neck.rotation.x = -0.4;
+          bones.leftShoulder.rotation.z = 2.0;
+          bones.rightShoulder.rotation.z = -2.0;
+
+          face.mouth.scale.set(0.8, 3.0, 1);
           break;
         }
 
         case 'calm': {
-          bones.abdomen.rotation.y = s(t * 1.3) * 0.14;
-          bones.chest.rotation.y = s(t * 1.3) * 0.10;
-          bones.leftShoulder.rotation.z = 0.08 + s(t * 1.3) * 0.03;
-          bones.rightShoulder.rotation.z = -0.08 - s(t * 1.3) * 0.03;
-          const breathe = 1.0 + s(t * 1.3) * 0.04;
+          // 穏やかな浮遊感
+          const float = s(realT * 1.5) * 0.1;
+          character.position.y = 0.2 + float;
+          bones.leftThigh.rotation.x = -0.5;
+          bones.rightThigh.rotation.x = -0.5;
+          bones.leftKnee.rotation.x = -0.8;
+          bones.rightKnee.rotation.x = -0.8;
+
+          const breathe = 1.0 + s(realT * 1.5) * 0.05;
           bones.chest.scale.set(breathe, breathe, breathe);
-          bones.head.rotation.y = s(t * 1.0) * 0.05;
-          face.leftEye.scale.y = 0.8 + s(t * 1.3) * 0.05;
-          face.rightEye.scale.y = 0.8 + s(t * 1.3) * 0.05;
-          face.leftBrowPivot.rotation.z = s(t * 1.2) * 0.05;
-          face.rightBrowPivot.rotation.z = -s(t * 1.2) * 0.05;
-          face.mouth.scale.set(1.0, 0.9 + s(t * 1.3) * 0.03, 1);
-          face.leftCheek.material.opacity = 0.12;
-          face.rightCheek.material.opacity = 0.12;
+
+          face.leftEye.scale.y = 0.05;
+          face.rightEye.scale.y = 0.05;
+          face.mouth.scale.set(0.5, 0.1, 1);
           break;
         }
 
         case 'confusion': {
-          const wobble = holdBurst(t, 1.3, 0.62);
-          bones.head.rotation.z = s(t * 2.8) * 0.32;
-          bones.head.rotation.y = s(t * 1.7) * 0.12;
-          bones.neck.rotation.z = s(t * 2.8) * 0.10;
-          bones.chest.rotation.y = s(t * 1.8) * 0.08 + wobble * 0.06;
-          bones.rightShoulder.rotation.x = -1.45;
-          bones.rightUpperArm.rotation.y = -0.95;
-          bones.rightElbow.rotation.x = -1.15;
-          bones.leftShoulder.rotation.z = 0.12;
-          bones.leftElbow.rotation.x = -0.15;
-          face.leftEyePivot.rotation.z = s(t * 2.8) * 0.08;
-          face.rightEyePivot.rotation.z = -s(t * 2.8) * 0.08;
-          face.leftBrowPivot.rotation.z = -0.30 + s(t * 2.8) * 0.1;
-          face.rightBrowPivot.rotation.z = 0.18 - s(t * 2.8) * 0.1;
-          face.leftBrowPivot.position.y += 0.004;
-          face.rightBrowPivot.position.y -= 0.01;
-          face.mouth.scale.set(0.95, 0.72 + a(s(t * 2.8)) * 0.25, 1);
-          face.mouthPivot.position.y -= 0.003;
-          face.leftCheek.material.opacity = 0.2;
-          face.rightCheek.material.opacity = 0.09;
+          // ぐるぐる回る頭と不安定なポーズ
+          character.rotation.z = s(realT * 2) * 0.1;
+          bones.head.rotation.y = realT * 10; // 頭が高速回転
+          bones.head.rotation.x = s(realT * 5) * 0.5;
+
+          bones.leftShoulder.rotation.z = 1.0 + s(realT * 4);
+          bones.rightShoulder.rotation.z = -1.0 + s(realT * 4.5);
+
+          face.leftEye.scale.set(1, 1.5, 1);
+          face.rightEye.scale.set(1.5, 1, 1); // 左右非対称
+          face.mouth.scale.set(1, 1, 1);
+          face.mouth.rotation.z = realT * 5;
           break;
         }
       }
